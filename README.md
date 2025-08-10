@@ -1,15 +1,11 @@
-<p align="center">
-  <img src="https://github.com/PantelisAndrianakis/TextNarrator/Images/Icon.png" alt="TextNarrator Logo" width="128" height="128">
-</p>
+# <p align="center"> TextNarrator</p>
 
-# TextNarrator
+<p align="center"> <img src="https://github.com/PantelisAndrianakis/TextNarrator/blob/main/Images/Icon.png" alt="TextNarrator Logo" width="128" height="128"></p>
 
 TextNarrator is a Windows desktop application that converts text to speech, reading your content aloud while highlighting each sentence as it's being read. Perfect for proofreading, accessibility, multitasking, or simply resting your eyes while consuming written content.
 
-## Screenshot
-
 <p align="center">
-  <img src="https://github.com/PantelisAndrianakis/TextNarrator/Images/Screenshot.png" alt="TextNarrator Screenshot" width="800">
+  <img src="https://github.com/PantelisAndrianakis/TextNarrator/blob/main/Images/Screenshot.png" alt="TextNarrator Screenshot" width="800">
 </p>
 
 ## Features
