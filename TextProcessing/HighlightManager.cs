@@ -1,7 +1,3 @@
-using System;
-using System.Drawing;
-using System.Windows.Forms;
-
 namespace TextNarrator
 {
 	/// <summary>
@@ -88,7 +84,7 @@ namespace TextNarrator
 			{
 				return (string)_richTextBox.Invoke(new Func<string>(() => _richTextBox.Text ?? string.Empty));
 			}
-			
+
 			return _richTextBox.Text ?? string.Empty;
 		}
 

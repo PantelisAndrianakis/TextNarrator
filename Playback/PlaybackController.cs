@@ -1,9 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace TextNarrator
 {
@@ -384,7 +379,7 @@ namespace TextNarrator
 				_cancellationTokenSource?.Dispose();
 				_cancellationTokenSource = null;
 
-				// Don't dispose engines here - they're disposed by MainForm.
+				// Don't dispose engines here, they're disposed by MainForm.
 			}
 			catch (Exception ex)
 			{
