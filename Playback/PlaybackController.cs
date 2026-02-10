@@ -343,7 +343,10 @@ namespace TextNarrator
 
 		private void ExecuteOnUIThread(Action action)
 		{
-			if (_parentControl.IsDisposed) return;
+			if (_parentControl.IsDisposed)
+			{
+				return;
+			}
 
 			if (_parentControl.InvokeRequired)
 			{

@@ -12,8 +12,8 @@ namespace TextNarrator
 
 		private static readonly Dictionary<string, string> Abbreviations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
 		{
-            // Titles.
-            {"Dr.", "Doctor"},
+			// Titles.
+			{"Dr.", "Doctor"},
 			{"Mr.", "Mister"},
 			{"Mrs.", "Missus"},
 			{"Ms.", "Miss"},
@@ -22,9 +22,9 @@ namespace TextNarrator
 			{"Fr.", "Father"},
 			{"Sr.", "Senior"},
 			{"Jr.", "Junior"},
-            
-            // Common abbreviations.
-            {"etc.", "etcetera"},
+			
+			// Common abbreviations.
+			{"etc.", "etcetera"},
 			{"vs.", "versus"},
 			{"e.g.", "for example"},
 			{"i.e.", "that is"},
@@ -34,35 +34,35 @@ namespace TextNarrator
 			{"Corp.", "Corporation"},
 			{"Ltd.", "Limited"},
 			{"Co.", "Company"},
-            
-            // Geographic.
-            {"St.", "Saint"},
+			
+			// Geographic.
+			{"St.", "Saint"},
 			{"Ave.", "Avenue"},
 			{"Blvd.", "Boulevard"},
 			{"Rd.", "Road"},
 			{"Ln.", "Lane"},
 			{"Ct.", "Court"},
 			{"Pl.", "Place"},
-            
-            // Units and measurements.
-            {"ft.", "feet"},
+			
+			// Units and measurements.
+			{"ft.", "feet"},
 			{"in.", "inches"},
 			{"lb.", "pounds"},
 			{"oz.", "ounces"},
 			{"min.", "minutes"},
 			{"sec.", "seconds"},
 			{"hrs.", "hours"},
-            
-            // Academic and professional.
-            {"Ph.D.", "PhD"},
+			
+			// Academic and professional.
+			{"Ph.D.", "PhD"},
 			{"M.D.", "MD"},
 			{"B.A.", "BA"},
 			{"M.A.", "MA"},
 			{"B.S.", "BS"},
 			{"M.S.", "MS"},
-            
-            // Other common ones.
-            {"No.", "Number"},
+			
+			// Other common ones.
+			{"No.", "Number"},
 			{"Vol.", "Volume"},
 			{"Ch.", "Chapter"},
 			{"Fig.", "Figure"},
