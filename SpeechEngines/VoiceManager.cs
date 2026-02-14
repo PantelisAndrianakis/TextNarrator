@@ -16,14 +16,14 @@ namespace TextNarrator
 		// Popular Piper models available for download.
 		private readonly string[] _availablePiperModels = new[]
 		{
-			"en_US-ryan-high",
-			"en_US-ljspeech-high", 
-			"en_US-libritts-high",
-			"en_US-kusal-medium",
-			"en_US-joe-medium",
+			"en_GB-alan-medium",
+			"en_GB-semaine-medium", 
 			"en_US-amy-medium",
-			"en_GB-semaine-medium",
-			"en_GB-alan-medium"
+			"en_US-joe-medium",
+			"en_US-kusal-medium",
+			"en_US-libritts-high",
+			"en_US-ljspeech-high",
+			"en_US-ryan-high"
 		};
 
 		public VoiceManager()

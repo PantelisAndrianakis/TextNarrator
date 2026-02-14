@@ -79,7 +79,7 @@ namespace TextNarrator
 				if (comboVoices.Items.Count > 0)
 				{
 					// Try to select preferred voice (Piper voices first, then fallback).
-					string? preferredVoice = _voiceManager.FindPreferredVoice("Piper: Ljspeech", "Piper: Ryan", "Zira", "James");
+					string? preferredVoice = _voiceManager.FindPreferredVoice("Piper: Alan", "Piper: Semaine", "Zira", "James");
 
 					if (preferredVoice != null)
 					{
