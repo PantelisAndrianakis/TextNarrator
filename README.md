@@ -93,7 +93,7 @@ Piper is an offline neural TTS system that runs entirely on your computer, offer
 If you prefer to download manually or have no internet:
 1. Download `piper_windows_amd64.zip` from [Piper Releases](https://github.com/rhasspy/piper/releases/tag/2023.11.14-2)
 2. Extract contents to `TextNarrator/piper/` folder
-3. Download voice models from [HuggingFace](https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0)
+3. Download voice models from [rhasspy's sample page](https://rhasspy.github.io/piper-samples/) or directly from [HuggingFace](https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0)
 4. Place `.onnx` and `.onnx.json` files in `TextNarrator/models/` folder
 
 ### Available Piper Voices

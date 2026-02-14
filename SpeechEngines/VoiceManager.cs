@@ -16,12 +16,14 @@ namespace TextNarrator
 		// Popular Piper models available for download.
 		private readonly string[] _availablePiperModels = new[]
 		{
-			"en_US-amy-medium",
-			"en_US-amy-low", 
-			"en_US-lessac-medium",
-			"en_US-lessac-low",
-			"en_GB-alan-medium",
-			"en_GB-alba-medium"
+			"en_US-libritts-high",
+			"en_US-ljspeech-high", 
+			"en_US-libritts-high",
+			"en_US-kusal-medium",
+			"en_US-joe-medium",
+			"en_US-libritts-high",
+			"en_GB-semaine-medium",
+			"en_GB-alan-medium"
 		};
 
 		public VoiceManager()
@@ -115,51 +117,66 @@ namespace TextNarrator
 			try
 			{
 				string modelsDir = Path.Combine(Directory.GetCurrentDirectory(), "models");
-				bool hasDownloadedModels = false;
 				bool hasPiperExe = File.Exists(Path.Combine(Directory.GetCurrentDirectory(), "piper.exe"));
-
-				// Check if any models are already downloaded.
+				
+				// Always show existing models in the models folder.
 				if (Directory.Exists(modelsDir))
 				{
 					string[] modelFiles = Directory.GetFiles(modelsDir, "*.onnx");
-					hasDownloadedModels = modelFiles.Length > 0;
 					
-					if (hasDownloadedModels)
+					if (modelFiles.Length > 0)
 					{
 						Debug.WriteLine($"Found {modelFiles.Length} downloaded Piper voice(s)");
+						
+						foreach (string modelFile in modelFiles)
+						{
+							string fileName = Path.GetFileNameWithoutExtension(modelFile);
+							
+							// Add to voices list with proper formatting.
+							string friendlyName = FormatPiperVoiceName(fileName);
+							
+							voices.Add(new VoiceInfo
+							{
+								DisplayName = friendlyName,
+								EngineType = SpeechEngineType.Piper,
+								PiperModelKey = fileName
+							});
+						}
 					}
 				}
-
-				// If no models and no Piper exe, check internet availability.
-				bool shouldAddPiperVoices = hasDownloadedModels || hasPiperExe;
 				
-				if (!shouldAddPiperVoices)
+				// Determine if we should show additional models for download.
+				bool shouldShowDownloadableModels = hasPiperExe;
+				
+				if (!shouldShowDownloadableModels)
 				{
 					bool internetAvailable = await IsInternetAvailableAsync();
-					
-					if (internetAvailable)
-					{
-						Debug.WriteLine("No Piper models found, but internet is available - showing voices for download");
-						shouldAddPiperVoices = true;
-					}
-					else
-					{
-						Debug.WriteLine("No Piper models found and no internet available - skipping Piper voices");
-						return;
-					}
+					shouldShowDownloadableModels = internetAvailable;
 				}
-
-				// Add Piper voices to the list.
-				foreach (string modelKey in _availablePiperModels)
+				
+				// Add downloadable models from the predefined list.
+				if (shouldShowDownloadableModels)
 				{
-					string friendlyName = FormatPiperVoiceName(modelKey);
+					// Track keys we already added from folder scan.
+					HashSet<string> existingModelKeys = new HashSet<string>(voices.Where(v => v.EngineType == SpeechEngineType.Piper).Select(v => v.PiperModelKey!));
 					
-					voices.Add(new VoiceInfo
+					foreach (string modelKey in _availablePiperModels)
 					{
-						DisplayName = friendlyName,
-						EngineType = SpeechEngineType.Piper,
-						PiperModelKey = modelKey
-					});
+						// Skip if already added from folder scan.
+						if (existingModelKeys.Contains(modelKey))
+						{
+							continue;
+						}
+						
+						string friendlyName = FormatPiperVoiceName(modelKey);
+						
+						voices.Add(new VoiceInfo
+						{
+							DisplayName = friendlyName,
+							EngineType = SpeechEngineType.Piper,
+							PiperModelKey = modelKey
+						});
+					}
 				}
 			}
 			catch (Exception ex)

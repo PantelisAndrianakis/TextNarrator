@@ -31,7 +31,7 @@ namespace TextNarrator
 		{
 			try
 			{
-				modelKey ??= "en_US-amy-medium";
+				modelKey ??= "en_US-libritts-high";
 				_currentVoiceName = modelKey;
 
 				string cwd = Directory.GetCurrentDirectory();
