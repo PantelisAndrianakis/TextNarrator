@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace TextNarrator
@@ -66,13 +67,16 @@ namespace TextNarrator
 			{"Vol.", "Volume"},
 			{"Ch.", "Chapter"},
 			{"Fig.", "Figure"},
-			{"Ref.", "Reference"}
+			{"Ref.", "Reference"},
+			
+			// Special cases.
+			{"# ", ""}
 		};
 
 		/// <summary>
 		/// Splits text into sentences with smart handling of paragraphs and formatting.
 		/// </summary>
-		public List<string> SplitIntoSentences(string text)
+		public static List<string> SplitIntoSentences(string text)
 		{
 			List<string> sentences = new List<string>();
 
@@ -83,6 +87,7 @@ namespace TextNarrator
 
 			try
 			{
+				// Don't preprocess ellipsis. Treat it as a sentence delimiter, then filter out standalone ellipsis sentences.
 				// Split by double line endings for paragraphs and titles.
 				string[] paragraphs = text.Split(new[] { "\r\n\r\n", "\n\n", "\r\r" }, StringSplitOptions.RemoveEmptyEntries);
 
@@ -104,6 +109,9 @@ namespace TextNarrator
 					}
 				}
 
+				// Filter out sentences that are only single punctuation marks.
+				sentences = sentences.Where(s => !IsOnlySinglePunctuationMark(s)).ToList();
+				
 				// Fallback: treat whole text as one sentence if no sentences found.
 				if (sentences.Count == 0 && !string.IsNullOrEmpty(text.Trim()))
 				{
@@ -129,7 +137,7 @@ namespace TextNarrator
 		/// <summary>
 		/// Replaces abbreviations with their full forms for better TTS pronunciation.
 		/// </summary>
-		public string ReplaceAbbreviations(string text)
+		public static string ReplaceAbbreviations(string text)
 		{
 			if (string.IsNullOrEmpty(text))
 			{
@@ -147,12 +155,12 @@ namespace TextNarrator
 			return text;
 		}
 
-		private bool IsTitle(string text)
+		private static bool IsTitle(string text)
 		{
 			return text.StartsWith("#") || (text.Length < MAX_TITLE_LENGTH && !text.EndsWith(".") && !text.EndsWith("!") && !text.EndsWith("?"));
 		}
 
-		private List<string> SplitParagraphIntoSentences(string paragraph)
+		private static List<string> SplitParagraphIntoSentences(string paragraph)
 		{
 			List<string> sentences = new List<string>();
 
@@ -164,7 +172,17 @@ namespace TextNarrator
 
 			// Combine all negative lookbehinds + sentence-ending punctuation.
 			string combinedLookbehinds = string.Join("", lookbehindPatterns);
-			string pattern = combinedLookbehinds + @"[.!?]+\s*";
+			// Handle abbreviations first, then include ellipsis and other delimiters.
+			// Apply the lookbehinds to each part of the pattern to prevent splitting at abbreviations.
+			string pattern =
+				// Handle periods not in abbreviations or ellipsis.
+				combinedLookbehinds + @"\.(?!\.|\s*[a-z])(?=\s*[A-Z0-9]|\s)" + "|" +
+				// Handle ellipsis as a separate case.
+				@"(?:\.\.\.|…)" + "|" +
+				// Handle other punctuation.
+				@"[!?]+" + "|" +
+				// Handle spaced hyphens/em dashes without capital letter requirement.
+				@"(\s-\s|\s—\s)";
 
 			try
 			{
@@ -188,7 +206,7 @@ namespace TextNarrator
 			return sentences;
 		}
 
-		private List<string> ProcessRegexParts(string[] parts, string originalParagraph)
+		private static List<string> ProcessRegexParts(string[] parts, string originalParagraph)
 		{
 			List<string> sentences = new List<string>();
 
@@ -205,7 +223,33 @@ namespace TextNarrator
 				if (partStartInOriginal >= 0)
 				{
 					int partEndInOriginal = partStartInOriginal + part.Trim().Length;
+					bool isValidPunctuation = false;
+					
+					// Check for standard punctuation.
 					if (partEndInOriginal < originalParagraph.Length && ".!?".Contains(originalParagraph[partEndInOriginal]))
+					{
+						isValidPunctuation = true;
+						part = part.Trim() + originalParagraph[partEndInOriginal];
+					}
+					// Check for spaced hyphens and em dashes.
+					else if (partEndInOriginal + 2 < originalParagraph.Length)
+					{
+						char currentChar = originalParagraph[partEndInOriginal];
+						char nextChar = originalParagraph[partEndInOriginal + 1];
+						char afterNextChar = originalParagraph[partEndInOriginal + 2];
+						
+						// Only if it's a space followed by hyphen/emdash followed by another space.
+						if (currentChar == ' ' && (nextChar == '-' || nextChar == '—') && afterNextChar == ' ')
+						{
+							isValidPunctuation = true;
+							// Include both the space and the punctuation.
+							part = part.Trim() + " " + nextChar;
+							// Skip to after the punctuation.
+							partEndInOriginal += 1;
+						}
+					}
+					
+					if (isValidPunctuation)
 					{
 						part = part.Trim() + originalParagraph[partEndInOriginal];
 					}
@@ -216,45 +260,101 @@ namespace TextNarrator
 			return sentences;
 		}
 
-		private List<string> FallbackSplit(string paragraph)
+		private static List<string> FallbackSplit(string paragraph)
 		{
 			List<string> sentences = new List<string>();
-			string[] simpleParts = paragraph.Split(new[] { '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries);
+			
+			// Use regex to split on standard punctuation and hyphens followed by capital letters.
+			// Apply same pattern logic as the main regex for consistency.
+			string pattern =
+				// Handle periods not in abbreviations or ellipsis.
+				@"(?<![A-Z][a-z]\.)\.(?!\.|\s*[a-z])(?=\s*[A-Z0-9]|\s)" + "|" +
+				// Handle ellipsis as a separate case.
+				@"(?:\.\.\.|…)" + "|" +
+				// Handle other punctuation.
+				@"[!?]+" + "|" +
+				// Handle spaced hyphens/em dashes without capital letter requirement.
+				@"(\s-\s|\s—\s)";
+			string[] simpleParts = Regex.Split(paragraph, pattern);
 
+			// Process the parts into sentences.
 			if (simpleParts.Length > 1)
 			{
-				string currentSentence = "";
-
+				StringBuilder currentSentence = new StringBuilder();
+				
 				for (int i = 0; i < simpleParts.Length; i++)
 				{
 					string part = simpleParts[i].Trim();
-					currentSentence += part;
-
-					bool endsWithAbbreviation = Abbreviations.Keys
-						.Where(abbrev => abbrev.EndsWith("."))
-						.Any(abbrev => part.EndsWith(abbrev.Substring(0, abbrev.Length - 1), StringComparison.OrdinalIgnoreCase));
-
-					if (!endsWithAbbreviation || i == simpleParts.Length - 1)
+					if (string.IsNullOrEmpty(part))
 					{
-						if (i < simpleParts.Length - 1)
+						continue;
+					}
+					
+					// Check if this part is a standard delimiter.
+					bool isDelimiter = part == "." || part == "!" || part == "?";
+					
+					// Check if this part is a spaced hyphen or em dash.
+					bool isHyphen = part == " - " || part == " — " || part == "-" || part == "—";
+					
+					if (isDelimiter || isHyphen)
+					{
+						// Standard punctuation.
+						currentSentence.Append(part);
+						
+						// Check if it's a period in an abbreviation.
+						if (part == "." && i > 0)
 						{
-							currentSentence += ".";
+							string prevText = simpleParts[i-1].Trim();
+							bool isAbbreviation = Abbreviations.Keys
+								.Where(abbrev => abbrev.EndsWith("."))
+								.Any(abbrev => prevText.EndsWith(abbrev.Substring(0, abbrev.Length - 1), StringComparison.OrdinalIgnoreCase));
+							
+							if (isAbbreviation)
+							{
+								// This is an abbreviation, continue building the sentence.
+								currentSentence.Append(" ");
+								continue;
+							}
 						}
-						sentences.Add(currentSentence.Trim());
-						currentSentence = "";
+						
+						// End of sentence.
+						sentences.Add(currentSentence.ToString().Trim());
+						currentSentence.Clear();
 					}
 					else
 					{
-						currentSentence += ". ";
+						// Regular text, add to current sentence.
+						currentSentence.Append(part);
 					}
+				}
+				
+				// Add any remaining content.
+				if (currentSentence.Length > 0)
+				{
+					sentences.Add(currentSentence.ToString().Trim());
 				}
 			}
 			else
 			{
+				// No delimiters found, use the whole paragraph.
 				sentences.Add(paragraph);
 			}
 
 			return sentences;
+		}
+		
+		/// <summary>
+		/// Checks if the string contains only a single punctuation mark (possibly with whitespace).
+		/// </summary>
+		private static bool IsOnlySinglePunctuationMark(string text)
+		{
+			if (string.IsNullOrWhiteSpace(text))
+			{
+				return false;
+			}
+			
+			string trimmed = text.Trim();
+			return trimmed == "-" || trimmed == "—" || trimmed == "." || trimmed == "!" || trimmed == "?" || trimmed == "..." || trimmed == "…";
 		}
 	}
 }

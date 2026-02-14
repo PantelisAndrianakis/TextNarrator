@@ -15,6 +15,7 @@ namespace TextNarrator
 		// Speech engines.
 		private readonly SystemSpeechEngine _systemSpeechEngine;
 		private readonly WinRtSpeechEngine _winRtSpeechEngine;
+		private PiperSpeechEngine? _piperSpeechEngine; // Created on-demand due to async initialization.
 
 		// Current state.
 		private ISpeechEngine _currentEngine;
@@ -33,21 +34,43 @@ namespace TextNarrator
 			_winRtSpeechEngine = new WinRtSpeechEngine();
 			_currentEngine = _winRtSpeechEngine; // Default to WinRT.
 
-			InitializeVoiceSelection();
+			// Note: Piper engine will be created on-demand when first Piper voice is selected.
 		}
 
 		/// <summary>
-		/// Initializes voice selection dropdown.
+		/// Form load event - initializes voices asynchronously.
 		/// </summary>
-		private void InitializeVoiceSelection()
+		protected override void OnLoad(EventArgs e)
+		{
+			base.OnLoad(e);
+			
+			// Initialize voice selection asynchronously.
+			_ = InitializeVoiceSelectionAsync();
+		}
+
+		/// <summary>
+		/// Initializes voice selection dropdown asynchronously.
+		/// </summary>
+		private async Task InitializeVoiceSelectionAsync()
 		{
 			comboVoices.Items.Clear();
 			comboVoices.DropDown += ComboVoices_DropDown;
 
 			try
 			{
-				List<VoiceInfo> voices = _voiceManager.GetAvailableVoices();
+				// Show loading indicator.
+				comboVoices.Enabled = false;
+				comboVoices.Items.Add("Loading voices...");
+				comboVoices.SelectedIndex = 0;
 
+				// Load voices asynchronously (includes Piper voices from HuggingFace).
+				List<VoiceInfo> voices = await _voiceManager.GetAvailableVoicesAsync();
+
+				// Clear loading indicator.
+				comboVoices.Items.Clear();
+				comboVoices.Enabled = true;
+
+				// Populate voice dropdown.
 				foreach (VoiceInfo voice in voices)
 				{
 					comboVoices.Items.Add(voice.DisplayName);
@@ -55,8 +78,8 @@ namespace TextNarrator
 
 				if (comboVoices.Items.Count > 0)
 				{
-					// Try to select preferred voice.
-					string? preferredVoice = _voiceManager.FindPreferredVoice("Guy");
+					// Try to select preferred voice (Piper voices first, then Guy, then fallback).
+					string? preferredVoice = _voiceManager.FindPreferredVoice("Piper: Amy", "Piper: Lessac", "Guy", "Zira");
 
 					if (preferredVoice != null)
 					{
@@ -79,7 +102,34 @@ namespace TextNarrator
 			}
 			catch (Exception ex)
 			{
-				MessageBox.Show($"Error initializing text-to-speech voices: {ex.Message}\n\nPlease ensure your system has speech voices installed.", "Initialization Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+				// Clear loading state.
+				comboVoices.Items.Clear();
+				comboVoices.Enabled = true;
+
+				// Show error but continue with fallback.
+				MessageBox.Show($"Error loading voices: {ex.Message}\n\nFalling back to system voices only.", "Voice Loading Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+				// Fallback: Load system voices only.
+				try
+				{
+					using (System.Speech.Synthesis.SpeechSynthesizer systemSynth = new System.Speech.Synthesis.SpeechSynthesizer())
+					{
+						System.Collections.ObjectModel.ReadOnlyCollection<System.Speech.Synthesis.InstalledVoice> systemVoices = systemSynth.GetInstalledVoices();
+						foreach (System.Speech.Synthesis.InstalledVoice voice in systemVoices.Where(v => v.Enabled))
+						{
+							comboVoices.Items.Add(voice.VoiceInfo.Name);
+						}
+					}
+
+					if (comboVoices.Items.Count > 0)
+					{
+						comboVoices.SelectedIndex = 0;
+					}
+				}
+				catch (Exception fallbackEx)
+				{
+					MessageBox.Show($"Critical error: Could not load any voices.\n\n{fallbackEx.Message}", "Initialization Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+				}
 			}
 		}
 
@@ -109,24 +159,79 @@ namespace TextNarrator
 
 			try
 			{
-				// Switch speech engine based on voice type.
-				ISpeechEngine newEngine = voiceInfo.IsSystemSpeech ? (ISpeechEngine)_systemSpeechEngine : _winRtSpeechEngine;
+				// Show loading cursor for Piper voices (first time initialization).
+				if (voiceInfo.EngineType == SpeechEngineType.Piper && _piperSpeechEngine == null)
+				{
+					Cursor = Cursors.WaitCursor;
+					comboVoices.Enabled = false;
+					Text = "TextNarrator - Downloading voice model...";
+				}
 
-				newEngine.SelectVoice(selectedVoice);
+				// Create appropriate engine based on voice type.
+				ISpeechEngine newEngine = await CreateEngineForVoiceAsync(voiceInfo);
+
+				// Select voice in the engine.
+				newEngine.SelectVoice(voiceInfo.PiperModelKey ?? selectedVoice);
+
+				// Update current engine.
 				_currentEngine = newEngine;
 				_playbackController.SetSpeechEngine(_currentEngine);
+
+				// Restore UI state.
+				Text = "TextNarrator";
+				Cursor = Cursors.Default;
+				comboVoices.Enabled = true;
 
 				// If currently playing, pause and resume with new voice.
 				if (_playbackController.State.IsPlaying)
 				{
 					_playbackController.Pause();
-					await System.Threading.Tasks.Task.Delay(200);
+					await Task.Delay(200);
 					await _playbackController.PlayAsync(richTextBox.Text ?? string.Empty);
 				}
 			}
 			catch (Exception ex)
 			{
-				MessageBox.Show($"Error selecting voice: {ex.Message}", "Voice Selection Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+				// Restore UI state.
+				Text = "TextNarrator";
+				Cursor = Cursors.Default;
+				comboVoices.Enabled = true;
+
+				MessageBox.Show($"Error selecting voice '{selectedVoice}': {ex.Message}\n\nFalling back to previous voice.", "Voice Selection Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+				// Fall back to system speech engine.
+				_currentEngine = _systemSpeechEngine;
+				_playbackController.SetSpeechEngine(_currentEngine);
+			}
+		}
+
+		/// <summary>
+		/// Creates the appropriate speech engine based on voice type.
+		/// </summary>
+		private async Task<ISpeechEngine> CreateEngineForVoiceAsync(VoiceInfo voiceInfo)
+		{
+			switch (voiceInfo.EngineType)
+			{
+				case SpeechEngineType.Piper:
+					// Create Piper engine on first use.
+					if (_piperSpeechEngine == null)
+					{
+						_piperSpeechEngine = new PiperSpeechEngine();
+						await _piperSpeechEngine.InitializeAsync(voiceInfo.PiperModelKey);
+					}
+					else
+					{
+						// Engine already exists, SelectVoice will handle model switching.
+						// (The SelectVoice method in PiperSpeechEngine re-initializes with new model).
+					}
+					return _piperSpeechEngine;
+
+				case SpeechEngineType.WinRT:
+					return _winRtSpeechEngine;
+
+				case SpeechEngineType.SystemSpeech:
+				default:
+					return _systemSpeechEngine;
 			}
 		}
 
@@ -207,6 +312,17 @@ namespace TextNarrator
 			{
 				MessageBox.Show($"Error restarting playback: {ex.Message}", "Restart Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 			}
+		}
+
+		/// <summary>
+		/// Form closing event - cleanup Piper resources.
+		/// </summary>
+		protected override void OnFormClosing(FormClosingEventArgs e)
+		{
+			// Dispose Piper engine if it was created.
+			_piperSpeechEngine?.Dispose();
+			
+			base.OnFormClosing(e);
 		}
 	}
 }

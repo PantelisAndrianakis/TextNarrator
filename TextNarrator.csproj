@@ -15,7 +15,12 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.WindowsDesktop.App" />
+    
+    <!-- Windows TTS engines. -->
     <PackageReference Include="System.Speech" Version="8.0.0" />
+    
+    <!-- Piper TTS - Simple approach that just calls the executable. -->
+    <PackageReference Include="NAudio" Version="2.2.1" />
   </ItemGroup>
 
 </Project>

@@ -11,7 +11,6 @@ namespace TextNarrator
 		private const int RESPONSIVE_DELAY_MS = 20;
 
 		private readonly PlaybackState _state;
-		private readonly TextProcessor _textProcessor;
 		private readonly HighlightManager _highlightManager;
 		private readonly Control _parentControl;
 		private readonly Action<string> _updateTitle;
@@ -26,7 +25,6 @@ namespace TextNarrator
 			_updateTitle = updateTitle ?? throw new ArgumentNullException(nameof(updateTitle));
 
 			_state = new PlaybackState();
-			_textProcessor = new TextProcessor();
 		}
 
 		public PlaybackState State => _state;
@@ -127,7 +125,7 @@ namespace TextNarrator
 			Stop();
 			await Task.Delay(100); // Brief delay to ensure cleanup.
 
-			List<string> sentences = _textProcessor.SplitIntoSentences(text);
+			List<string> sentences = TextProcessor.SplitIntoSentences(text);
 			if (sentences.Count > 0)
 			{
 				SentencePosition position = _highlightManager.FindAndHighlight(sentences[0], 0);
@@ -142,14 +140,14 @@ namespace TextNarrator
 			_state.Play();
 			_highlightManager.ClearHighlight();
 
-			List<string> sentences = _textProcessor.SplitIntoSentences(text);
+			List<string> sentences = TextProcessor.SplitIntoSentences(text);
 			await PlaySentencesAsync(sentences, 0);
 		}
 
 		private async Task ResumeFromPauseAsync(string text)
 		{
 			int resumeIndex = _state.GetResumeIndex();
-			List<string> sentences = _textProcessor.SplitIntoSentences(text);
+			List<string> sentences = TextProcessor.SplitIntoSentences(text);
 
 			if (resumeIndex >= 0 && resumeIndex < sentences.Count)
 			{
@@ -210,7 +208,7 @@ namespace TextNarrator
 					// Update state and UI.
 					_state.CurrentSentenceIndex = i;
 					string originalSentence = sentences[i];
-					string processedSentence = _textProcessor.ReplaceAbbreviations(originalSentence);
+					string processedSentence = TextProcessor.ReplaceAbbreviations(originalSentence);
 
 					UpdateTitle(i + 1, sentenceCount);
 
@@ -224,10 +222,10 @@ namespace TextNarrator
 						break;
 					}
 
-					// Reset to beginning after last sentence.
+					// Stop playback after last sentence.
 					if (i == sentences.Count - 1 && !_state.IsPaused && !_state.IsStopped)
 					{
-						_state.CurrentSentenceIndex = 0;
+						Stop();
 					}
 
 					// Delay between sentences.
