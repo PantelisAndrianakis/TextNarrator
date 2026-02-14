@@ -70,7 +70,9 @@ namespace TextNarrator
 			{"Ref.", "Reference"},
 			
 			// Special cases.
-			{"# ", ""}
+			{"#", ""},
+			{"***", ""},
+			{"**", ""}
 		};
 
 		/// <summary>
